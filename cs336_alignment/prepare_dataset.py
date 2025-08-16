@@ -5,9 +5,12 @@ from datasets import Dataset, DatasetDict
 from math_verify import parse, verify
 
 
-DS_PATH = './data/tulu_math/tulu'
-ds = datasets.load_from_disk(DS_PATH)
-print(ds)
+# DS_PATH = './data/tulu_math/tulu'
+# ds = datasets.load_from_disk(DS_PATH)
+# print(ds)
+
+
+
 
 # def generate_data(data_path: str):
 #     with open(data_path, "r", encoding="utf-8") as f:
