@@ -1,3 +1,5 @@
+# uv run cs336_alignment/baseline.py
+
 from vllm import LLM, SamplingParams
 import json
 from collections.abc import Callable
@@ -53,7 +55,7 @@ def main(model_name="Qwen/Qwen2.5-Math-1.5B", dataset_path="./data/gsm8k/test.js
     # preprocess the dataset 
     prompts = [R1_ZERO_PROMPT.format(question=pd['question']) for pd in prompt_data]
     gt_answer = [pd['answer'] for pd in prompt_data]
-
+    
     # load model 
     llm = LLM(model=model_name)
     
