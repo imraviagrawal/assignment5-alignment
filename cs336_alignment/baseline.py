@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import List
 import pandas as pd
 import torch
+from math_verify import parse, verify
 
 from cs336_alignment.drgrpo_grader import r1_zero_reward_fn 
 # print(f"Torch Cude is available: {torch.cuda.is_available()}")
@@ -46,7 +47,11 @@ def evaluate_vllm(
     for output, answer in zip(outputs, answers):
         prompt = output.prompt
         gen_text = output.outputs[0].text
-        rewards = reward_fn(gen_text, answer)
+        try:
+            parsed_answer = parse(answer)[1]
+        except:
+            parsed_answer = answer
+        rewards = reward_fn(gen_text, parsed_answer)
         curr_res = {"prompt": prompt, "generated_text": gen_text, "correct_answer": answer, "rewards": rewards}
         final_result.append(curr_res)
     return final_result
@@ -72,7 +77,7 @@ def main(model_name="Qwen/Qwen2.5-Math-1.5B", dataset_path="./data/gsm8k/test.js
     sampling_params.include_stop_str_in_output = True
 
     # import ipdb; ipdb.set_trace()
-    results = evaluate_vllm(llm, reward_fn=r1_zero_reward_fn, prompts=prompts[:3], eval_sampling_params=sampling_params, answers = gt_answer[:3])
+    # results = evaluate_vllm(llm, reward_fn=r1_zero_reward_fn, prompts=prompts[:3], eval_sampling_params=sampling_params, answers = gt_answer[:3])
 
     results = evaluate_vllm(llm, reward_fn=r1_zero_reward_fn, prompts=prompts, eval_sampling_params=sampling_params, answers = gt_answer)
     
@@ -93,10 +98,11 @@ def print_qwen_eval_results():
     format_zero_10_examples = []
     format_one_answer_zero_10_examples = []
     
+    # import ipdb; ipdb.set_trace()
     # Tally each reward combination
     for r in results:
-        format_reward = r['reward']['format_reward']
-        answer_reward = r['reward']['answer_reward']
+        format_reward = r['rewards']['format_reward']
+        answer_reward = r['rewards']['answer_reward']
 
         if format_reward == 1 and answer_reward == 1:
             format_one_answer_one += 1
@@ -138,5 +144,5 @@ def print_qwen_eval_results():
     print(json.dumps(format_one_answer_zero_10_examples, indent=4))
 
 if __name__ == "__main__":
-    # main()
+    main()
     print_qwen_eval_results()
