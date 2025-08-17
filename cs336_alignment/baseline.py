@@ -25,6 +25,13 @@ def save_to_jsonl(data, output_path):
         for record in data:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
+def load_jsonl(path):
+    # load dataset 
+    with open(path, "r") as f:
+        prompt_data = [json.loads(json_line) for json_line in f]
+    return prompt_data
+
+    
 # runs inference on the prompts 
 def evaluate_vllm(
     vllm_model: LLM,
@@ -55,7 +62,7 @@ def main(model_name="Qwen/Qwen2.5-Math-1.5B", dataset_path="./data/gsm8k/test.js
     # preprocess the dataset 
     prompts = [R1_ZERO_PROMPT.format(question=pd['question']) for pd in prompt_data]
     gt_answer = [pd['answer'] for pd in prompt_data]
-    
+
     # load model 
     llm = LLM(model=model_name)
     
@@ -64,7 +71,7 @@ def main(model_name="Qwen/Qwen2.5-Math-1.5B", dataset_path="./data/gsm8k/test.js
     sampling_params.stop = ["</answer>"]
     sampling_params.include_stop_str_in_output = True
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     results = evaluate_vllm(llm, reward_fn=r1_zero_reward_fn, prompts=prompts[:3], eval_sampling_params=sampling_params, answers = gt_answer[:3])
 
     results = evaluate_vllm(llm, reward_fn=r1_zero_reward_fn, prompts=prompts, eval_sampling_params=sampling_params, answers = gt_answer)
@@ -72,6 +79,64 @@ def main(model_name="Qwen/Qwen2.5-Math-1.5B", dataset_path="./data/gsm8k/test.js
     # store the result to output path
     save_to_jsonl(results, output_path)
 
+    rewards = [res['rewards'] for res in results]
+    answer_rewards = [reward for reward in rewards if reward['answer_reward'] > 0.0]
+    raw_rewards = [reward for reward in rewards if reward['reward'] > 0.0]
+
+def print_qwen_eval_results():
+    results = load_jsonl("./cs336_alignment/outputs/gsm8k/test.jsonl")
+    
+    format_one_answer_one = 0
+    format_one_answer_zero = 0
+    format_zero_answer_zero = 0
+
+    format_zero_10_examples = []
+    format_one_answer_zero_10_examples = []
+    
+    # Tally each reward combination
+    for r in results:
+        format_reward = r['reward']['format_reward']
+        answer_reward = r['reward']['answer_reward']
+
+        if format_reward == 1 and answer_reward == 1:
+            format_one_answer_one += 1
+        elif format_reward == 1 and answer_reward == 0:
+            format_one_answer_zero += 1
+
+            if len(format_one_answer_zero_10_examples) < 10:
+                format_one_answer_zero_10_examples.append(r)
+        elif format_reward == 0 and answer_reward == 0:
+            format_zero_answer_zero += 1
+
+            if len(format_zero_10_examples) < 10:
+                format_zero_10_examples.append(r)
+
+    reward_labels = [
+        'Format Reward = 1, Answer Reward = 1',
+        'Format Reward = 1, Answer Reward = 0',
+        'Format Reward = 0, Answer Reward = 0',
+    ]
+
+    tallies = [
+        format_one_answer_one,
+        format_one_answer_zero,
+        format_zero_answer_zero,
+    ]
+    
+    df = pd.DataFrame({
+        'Reward': reward_labels,
+        'Tally': tallies,
+    })
+
+    table_md = df.to_markdown(index=False)
+    print(table_md)
+
+    print('10 examples where format reward = 0:')
+    print(json.dumps(format_zero_10_examples, indent=4))
+
+    print('10 examples where format reward = 1, answer reward = 0:')
+    print(json.dumps(format_one_answer_zero_10_examples, indent=4))
 
 if __name__ == "__main__":
-    main()
+    # main()
+    print_qwen_eval_results()
