@@ -40,10 +40,12 @@ def tokenize_prompt_and_output(prompt_strs, output_strs, tokenizer = AutoTokeniz
 
 def compute_entropy(logits: torch.Tensor) -> torch.tensor:
     # compute softmax 
-    p_numerator = torch.exp(logits)
-    p_denom = torch.sum(p_numerator, dim=-1, keepdim=True)
+    # p_numerator = torch.exp(logits)
+    # p_denom = torch.sum(p_numerator, dim=-1, keepdim=True)
 
-    log_prob = logits - torch.logsumexp(logits, dim=-1, keepdim=True)
+    # log_prob = logits - torch.logsumexp(logits, dim=-1, keepdim=True)
 
-    summand = (p_numerator/p_denom)*log_prob
-    return -torch.sum(summand, dim=-1) # b, s
+    # summand = (p_numerator/p_denom)*log_prob
+    # return -torch.sum(summand, dim=-1) # b, s
+    summand = F.softmax(logits, dim=-1)* (logits - torch.logsumexp(logits, dim=-1, keepdim=True))
+    return -torch.sum(summand, dim=-1)
