@@ -1,9 +1,12 @@
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 import torch
 import torch.nn.functional as F
-# tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
-# local_directory = "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
+model = AutoModel.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
+local_directory = "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
+model.save_pretrained(local_directory)
 # tokenizer.save_pretrained(local_directory)
+
 
 def tokenize_prompt_and_output(prompt_strs, output_strs, tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")):
     # tokenize input string W/ EOD 
@@ -49,3 +52,34 @@ def compute_entropy(logits: torch.Tensor) -> torch.tensor:
     # return -torch.sum(summand, dim=-1) # b, s
     summand = F.softmax(logits, dim=-1)* (logits - torch.logsumexp(logits, dim=-1, keepdim=True))
     return -torch.sum(summand, dim=-1)
+
+def get_response_log_probs(model, input_ids, labels, return_token_entropy) -> dict[str, torch.Tensor]:
+    logits = model(input_ids).logits
+    log_probs = F.log_softmax(logits, dim=-1)
+    log_probs = torch.gather(log_probs, dim=-1, index=labels.unsqueeze(-1))
+    log_probs = log_probs.squeeze(-1)
+    ret_dict = {}
+    ret_dict['log_probs'] = log_probs
+
+    if return_token_entropy:
+        ret_dict['token_entropy'] = compute_entropy(logits)
+    
+    return ret_dict
+
+def masked_normalize(tensor, mask, normalize_constant, dim=None):
+    # if dim == None: dim = -1
+    # masked_tensor = torch.masked_select(tensor, mask)
+    tensor_sum = torch.sum(tensor*mask, dim=dim)
+    tensor_normalize = tensor_sum/normalize_constant
+    return tensor_normalize
+
+def sft_microbatch_train_step(policy_log_probs, response_mask, gradient_accumulation_steps, normalize_constant):
+    loss = (-masked_normalize(policy_log_probs, response_mask, normalize_constant, -1)).mean()
+    loss /= gradient_accumulation_steps
+    loss.backward()
+    loss_metadata = {
+        'gradient_accumulation_steps': gradient_accumulation_steps,
+        'normalize_constant': normalize_constant
+    }
+
+    return (loss, loss_metadata)
