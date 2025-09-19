@@ -10,6 +10,7 @@ from transformers import PreTrainedTokenizerBase
 
 
 from cs336_alignment.sft_helper import *
+from cs336_alignment.grpo_helper import *
 def run_tokenize_prompt_and_output(
     prompt_strs: list[str],
     output_strs: list[str],
@@ -79,7 +80,12 @@ def run_compute_group_normalized_rewards(
                 You may choose what you wish to log here
                 (some statistics of the rewards, etc.).
     """
-    raise NotImplementedError
+    return compute_group_normalized_rewards(reward_fn, 
+    rollout_responses, 
+    repeated_ground_truths, 
+    group_size,
+    advantage_eps,
+    normalize_by_std,)
 
 
 def run_compute_entropy(logits: torch.Tensor) -> torch.Tensor:
@@ -137,7 +143,7 @@ def run_compute_naive_policy_gradient_loss(
         torch.Tensor of shape (batch_size, sequence_length): 
             the policy gradient per-token loss.
     """
-    raise NotImplementedError
+    return compute_naive_policy_gradient_loss(raw_rewards_or_advantages, policy_log_probs)
 
 
 def run_compute_grpo_clip_loss(
@@ -164,7 +170,7 @@ def run_compute_grpo_clip_loss(
             dict[str, torch.Tensor]: metadata for the GRPO-Clip loss 
                 (used to compute clip fraction).
     """
-    raise NotImplementedError
+    return compute_grpo_clip_loss(advantages, policy_log_probs, old_log_probs, cliprange)
 
 
 def run_compute_policy_gradient_loss(
