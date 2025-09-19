@@ -83,5 +83,30 @@ def masked_mean(
     masked_count = mask.sum(dim=dim)
     return masked_sum / masked_count
 
+def grpo_microbatch_train_step(
+    policy_log_probs: torch.Tensor,
+    response_mask: torch.Tensor,
+    gradient_accumulation_steps: int,
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    raw_rewards: torch.Tensor | None= None,
+    advantages: torch.Tensor | None= None,
+    old_log_probs: torch.Tensor | None= None,
+    cliprange: float | None= None,
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+
+    # get per token loss 
+    loss_t, metadata = compute_policy_gradient_loss(policy_log_probs, loss_type, raw_rewards, advantages, old_log_probs, cliprange)
+
+
+    # masked loss scaler / example
+    loss_e = masked_mean(loss_t, response_mask, dim=1) # per example mean (batch, 1)
+
+    # single batch loss, gradient accumulation 
+    loss = loss_e.mean()/gradient_accumulation_steps
+
+    # backpropogate
+    loss.backward()
+
+    return loss, metadata
 
 
