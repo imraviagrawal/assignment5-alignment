@@ -1,11 +1,12 @@
 from transformers import AutoTokenizer, AutoModel
 import torch
+from typing import Literal
 import torch.nn.functional as F
-tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
-model = AutoModel.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
-local_directory = "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
-model.save_pretrained(local_directory)
-tokenizer.save_pretrained(local_directory)
+# tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
+# model = AutoModel.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
+# local_directory = "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
+# model.save_pretrained(local_directory)
+# tokenizer.save_pretrained(local_directory)
 
 def compute_group_normalized_rewards(
     reward_fn, 
@@ -47,7 +48,40 @@ def compute_grpo_clip_loss(advantages, policy_log_probs, old_log_probs, cliprang
     metadata = {"lhs": lhs, "rhs": rhs, "clipped": rhs < lhs}
     return (loss, metadata)
 
+def compute_policy_gradient_loss(
+    policy_log_probs: torch.Tensor,
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    raw_rewards: torch.Tensor | None= None,
+    advantages: torch.Tensor | None= None,
+    old_log_probs: torch.Tensor | None= None,
+    cliprange: float | None= None,
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
 
+    if loss_type == "no_baseline":
+        assert raw_rewards != None, "Raw Rewards are required for the baseline"
+        return compute_naive_policy_gradient_loss(raw_rewards, policy_log_probs), {}
+    
+    if loss_type == "reinforce_with_baseline":    
+        assert advantages != None, "Advantages are required for the baseline or clip loss"
+        return compute_naive_policy_gradient_loss(advantages, policy_log_probs), {}
+
+    if loss_type == "grpo_clip":
+        assert old_log_probs != None, "Old Log Probs needed for grpo loss"
+        assert advantages != None, "Advantages are required for the baseline or clip loss"
+        assert cliprange != None, "Clip range is need for grpo clip loss"
+        return compute_grpo_clip_loss(advantages, policy_log_probs, old_log_probs, cliprange)
+
+
+def masked_mean(
+    tensor: torch.Tensor,
+    mask: torch.Tensor,
+    dim: int | None= None,
+    ) -> torch.Tensor:
+    mask = mask.to(tensor.dtype) 
+    masked = tensor * mask # project to same dtpye as input
+    masked_sum = masked.sum(dim=dim)
+    masked_count = mask.sum(dim=dim)
+    return masked_sum / masked_count
 
 
 
