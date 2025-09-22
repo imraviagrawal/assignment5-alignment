@@ -159,6 +159,26 @@ def train_grpo(model_name,
                                                                                              sampling_params)
         print(f"Q: {repeated_prompts[0]}, \nA: {repeated_ground_truths[0]}, \n RO: {rollout_responses[0]}")
         
+        if train_step % eval_log_frequecy == 0:
+            # generate roll outs 
+            eval_params = SamplingParams(temperature=1.0,  
+                                        stop=["</answer>"], 
+                                        include_stop_str_in_output=True, 
+                                        )
+            idx = np.random.choice(len(eval_dataset), n_eval, replace=False)
+            eval_dataset_sampled = [eval_dataset[id] for id in idx]
+            eval_prompts, eval_answers = [], []
+            for d in eval_dataset_sampled:
+                eval_prompts.append(d["question"])
+                eval_answers.append(d["answer"])
+            eval_out = evaluate_vllm(llm, r1_zero_reward_fn, eval_prompts, eval_params, eval_answers)
+            # import ipdb; ipdb.set_trace()
+            sum_rewards = sum([d['rewards']["reward"] for d in eval_out])
+            sum_format_reward = sum([d['rewards']["format_reward"] for d in eval_out])
+            sum_answer_reward = sum([d['rewards']["answer_reward"] for d in eval_out])
+            answer_len = len(eval_out)
+            print(f"Average Rewards {sum_rewards/answer_len}, Avg Format: {sum_format_reward/answer_len}, Avg Answer: {sum_answer_reward/answer_len}")
+
         advantages, raw_rewards, metadata = compute_group_normalized_rewards(
             r1_zero_reward_fn, 
             rollout_responses, 
@@ -210,29 +230,9 @@ def train_grpo(model_name,
                 # import ipdb; ipdb.set_trace()
                 rollout_batch_loss += loss.item()
             optim.step()
-            print(f"Train Step: {train_step}, Roll out batch Loss: {rollout_batch_loss}")
-
-            if train_step % eval_log_frequecy == 0:
-                # generate roll outs 
-                eval_params = SamplingParams(temperature=sampling_temperature, 
-                                            max_tokens=sampling_max_tokens, 
-                                            min_tokens=sampling_min_tokens, 
-                                            n=1, 
-                                            stop=["</answer>"], 
-                                            include_stop_str_in_output=True, 
-                                            )
-                idx = np.random.choice(len(eval_dataset), n_eval, replace=False)
-                eval_dataset_sampled = [eval_dataset[id] for id in idx]
-                eval_prompts, eval_answers = [], []
-                for d in eval_dataset_sampled:
-                    eval_prompts.append(d["question"])
-                    eval_answers.append(d["answer"])
-                eval_out = evaluate_vllm(policy, r1_zero_reward_fn, eval_prompts, eval_params, eval_answers)
-                sum_rewards = sum([d['rewards'] for d in eval_out])
-                avg_rewards = sum_rewards / len(eval_out)
-                print(f"Average Rewards {avg_rewards}")
-
             train_step += 1
+            print(f"Train Step: {train_step}, Roll out batch Loss: {rollout_batch_loss}")
+            
 
 if __name__ == "__main__":
     train_grpo("model")
