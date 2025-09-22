@@ -170,17 +170,18 @@ def train_grpo(model_name,
         advantages = advantages.to(policy_device)
         raw_rewards = raw_rewards.to(policy_device)
 
-        import ipdb; ipdb.set_trace()
         tokenized = tokenize_prompt_and_output(repeated_prompts, rollout_responses)
         input_ids_tensor = torch.Tensor(tokenized['input_ids']).to(policy_device) # b, seq
         labels_tensor = torch.Tensor(tokenized['labels']).to(policy_device)
         mask_tensor = torch.tensor(tokenized['response_mask']).to(policy_device)
 
-        # get old log probs 
+        # get old log probs OOM 
         policy.eval()
         with torch.no_grad():
-            old_policy_log_probs = get_response_log_probs(policy, input_ids_tensor, labels_tensor, return_token_entropy=True)['log_probs']
-            
+            old_policy_log_probs = []
+            for idx in range(0, len(input_ids_tensor), micro_train_batch_size):
+                old_policy_log_probs.append(get_response_log_probs(policy, input_ids_tensor[idx : idx + micro_train_batch_size], labels_tensor[idx : idx + micro_train_batch_size], return_token_entropy=True)['log_probs'])
+            old_policy_log_probs = torch.cat(old_policy_log_probs, dim=0)
 
         for epoch in range(epochs_per_rollout_batch):
             optim.zero_grad()
@@ -199,11 +200,14 @@ def train_grpo(model_name,
                 token_entropy = policy_log_probs['token_entropy']
                 policy_log_probs = policy_log_probs['log_probs']
                 
+                raw_reward = raw_reward.unsqueeze(1)
+                advantage = advantage.unsqueeze(1)
+
                 loss, metadata = grpo_microbatch_train_step(
                     policy_log_probs, mask, gradient_accumulation_steps, loss_type, 
                     raw_reward, advantage, old_log_prob, cliprange
                 )
-                
+                # import ipdb; ipdb.set_trace()
                 rollout_batch_loss += loss.item()
             optim.step()
             print(f"Train Step: {train_step}, Roll out batch Loss: {rollout_batch_loss}")
