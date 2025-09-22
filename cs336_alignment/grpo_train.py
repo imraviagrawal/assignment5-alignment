@@ -107,6 +107,7 @@ def train_grpo(model_name,
     n_microbatches_per_rollout_batch = rollout_batch_size // micro_train_batch_size
 
     # load policy 
+    import ipdb; ipdb.set_trace()
     policy_device = "cuda:0"
     policy, tokenizer = init_policy(policy_device)
 
@@ -222,8 +223,7 @@ def train_grpo(model_name,
 
             train_step += 1
 
-
-if __name == "__main__":
+if __name__ == "__main__":
     train_grpo("model")
 
 
