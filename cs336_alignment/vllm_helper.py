@@ -4,7 +4,7 @@ from transformers import PreTrainedModel, AutoModelForCausalLM, AutoTokenizer
 from unittest.mock import patch
 import torch
 
-def init_policy(debug=False):
+def init_policy(device, debug=False):
     model = AutoModelForCausalLM.from_pretrained(
         "/data/a5-alignment/models/Qwen2.5-Math-1.5B",
         torch_dtype=torch.bfloat16,
@@ -12,7 +12,7 @@ def init_policy(debug=False):
     )
     tokenizer = AutoTokenizer.from_pretrained("/data/a5-alignment/models/Qwen2.5-Math-1.5B")
 
-    model.to('cuda:0')
+    model.to(device)
 
     return model, tokenizer
 
