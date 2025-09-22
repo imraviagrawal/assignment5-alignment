@@ -88,7 +88,7 @@ def train_grpo(model_name,
                loss_type: Literal[
                    "no_baseline",
                    "reinforce_with_baseline",
-                   "grpo_clip","grpo_noclip"] = "reinforce_with_baseline",
+                   "grpo_clip","grpo_noclip"] = "grpo_clip",
                 use_std_normalization: bool = True,
                 cliprange = 0.2,
                 eval_steps=256,
@@ -157,7 +157,7 @@ def train_grpo(model_name,
                                                                                              question_batch, 
                                                                                              R1_ZERO_PROMPT, 
                                                                                              sampling_params)
-        print(f"Q: {repeated_prompts[0]}, \nA: {repeated_ground_truths[0]}, \n RO: {rollout_responses[0]}")
+        # print(f"Q: {repeated_prompts[0]}, \nA: {repeated_ground_truths[0]}, \n RO: {rollout_responses[0]}")
         
         if train_step % eval_log_frequecy == 0:
             # generate roll outs 

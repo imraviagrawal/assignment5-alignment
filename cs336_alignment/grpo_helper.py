@@ -18,7 +18,13 @@ def compute_group_normalized_rewards(
     ):
 
     # calculate rewards 
-    rewards_list = [reward_fn(pred, gold) for pred, gold in zip(rollout_responses, repeated_ground_truths)]
+    parsed_answer = []
+    for res in rollout_responses:
+        try: 
+            parsed_answer.append(parse(res)1)
+        except:
+            parsed_answer.append(res)
+    rewards_list = [reward_fn(pred, gold) for pred, gold in zip(parsed_answer, repeated_ground_truths)]
     raw_rewards = torch.Tensor([rwd["reward"] for rwd in rewards_list])
     rewards = raw_rewards.reshape(-1, group_size)
     mean_rewards = rewards.mean(dim=-1, keepdim=True)
