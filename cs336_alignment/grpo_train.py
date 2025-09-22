@@ -223,7 +223,8 @@ def train_grpo(model_name,
             train_step += 1
 
 
-
+if __name == "__main__":
+    train_grpo("model")
 
 
 
