@@ -2,6 +2,7 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 from typing import Literal
 import torch.nn.functional as F
+from math_verify import parse, verify
 # tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
 # model = AutoModel.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
 # local_directory = "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
@@ -21,7 +22,7 @@ def compute_group_normalized_rewards(
     parsed_answer = []
     for res in rollout_responses:
         try: 
-            parsed_answer.append(parse(res)1)
+            parsed_answer.append(parse(res)[1])
         except:
             parsed_answer.append(res)
     rewards_list = [reward_fn(pred, gold) for pred, gold in zip(parsed_answer, repeated_ground_truths)]
