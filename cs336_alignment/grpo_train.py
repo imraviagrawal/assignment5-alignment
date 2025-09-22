@@ -107,12 +107,13 @@ def train_grpo(model_name,
     n_microbatches_per_rollout_batch = rollout_batch_size // micro_train_batch_size
 
     # load policy 
-    import ipdb; ipdb.set_trace()
+    print("Loading Policy")
     policy_device = "cuda:0"
     policy, tokenizer = init_policy(policy_device)
 
     # initilize vllm model 
-    llm = init_vllm("/data/a5-alignment/models/Qwen2.5-Math-1.5B", "cuda:1", 0)  # llm for inference 
+    print("loading vllm model")
+    llm = init_vllm("Qwen/Qwen2.5-Math-1.5B", "cuda:1", 0)  # llm for inference 
     optim = torch.optim.AdamW(policy.parameters(), 
                               lr=learning_rate, 
                               weight_decay=0.0, 
@@ -121,6 +122,7 @@ def train_grpo(model_name,
     
     # we need to convert this to torch dataset and shuffle
     # training dataset: 
+    print("loading training Dataset")
     train_dataset = load_math_data("data/gsm8k/train.jsonl")
     # train_dataset = TextDataset("data/gsm8k/train.jsonl")
     # train_dataloader = DataLoader(train_dataset, batch_size=micro_train_batch_size, shuffle=True)
@@ -130,6 +132,7 @@ def train_grpo(model_name,
     # validation_dataloader = DataLoader(eval_dataset, batch_size=4, shuffle=True) # shuffle not needed 
 
     # first loop 
+    print("starting training")
     train_step = 0
     for step in tqdm(range(n_grpo_steps)):
         # sample n prompt per roll out
@@ -137,6 +140,7 @@ def train_grpo(model_name,
         question_batch = [train_dataset[i] for i in idx]
 
         # set old policy as policy: 
+        print("update old policy with policy w/ last updates")
         load_policy_into_vllm_instance(policy, llm) # change old policy with last policy
 
         # generate roll outs 
@@ -148,10 +152,12 @@ def train_grpo(model_name,
                                     include_stop_str_in_output=True, 
                                     )
         
+        
         repeated_prompts, repeated_ground_truths, rollout_responses = generate_grpo_rollouts(llm, 
                                                                                              question_batch, 
                                                                                              R1_ZERO_PROMPT, 
                                                                                              sampling_params)
+        print(f"Q: {repeated_prompts[0]}, \nA: {repeated_ground_truths[0]}, \n RO: {rollout_responses[0]}")
         
         advantages, raw_rewards, metadata = compute_group_normalized_rewards(
             r1_zero_reward_fn, 
@@ -164,6 +170,7 @@ def train_grpo(model_name,
         advantages = advantages.to(policy_device)
         raw_rewards = raw_rewards.to(policy_device)
 
+        import ipdb; ipdb.set_trace()
         tokenized = tokenize_prompt_and_output(repeated_prompts, rollout_responses)
         input_ids_tensor = torch.Tensor(tokenized['input_ids']).to(policy_device) # b, seq
         labels_tensor = torch.Tensor(tokenized['labels']).to(policy_device)

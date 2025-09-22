@@ -24,8 +24,8 @@ def tokenize_prompt_and_output(prompt_strs, output_strs, tokenizer = AutoTokeniz
     max_po_len = max(p_o_len)
     bsz = len(p_o_len)
 
-    input_ids = torch.zeros((bsz, max_po_len-1))
-    labels = torch.zeros((bsz, max_po_len-1))
+    input_ids = torch.zeros((bsz, max_po_len-1), dtype=torch.long)
+    labels = torch.zeros((bsz, max_po_len-1), dtype=torch.long)
     response_mask = torch.zeros((bsz, max_po_len-1), dtype=torch.bool)
 
     for i, (p, o) in enumerate(zip(prompt_ids, output_ids)):

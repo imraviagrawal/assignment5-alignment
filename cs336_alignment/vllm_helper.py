@@ -6,11 +6,11 @@ import torch
 
 def init_policy(device, debug=False):
     model = AutoModelForCausalLM.from_pretrained(
-        "/data/a5-alignment/models/Qwen2.5-Math-1.5B",
+        "Qwen/Qwen2.5-Math-1.5B",
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
     )
-    tokenizer = AutoTokenizer.from_pretrained("/data/a5-alignment/models/Qwen2.5-Math-1.5B")
+    tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
 
     model.to(device)
 
