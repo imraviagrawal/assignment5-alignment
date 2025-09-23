@@ -47,10 +47,10 @@ def evaluate_vllm(
     for output, answer in zip(outputs, answers):
         prompt = output.prompt
         gen_text = output.outputs[0].text
-        try:
-            parsed_answer = parse(answer)[1]
-        except:
-            parsed_answer = answer
+        # try:
+        #     parsed_answer = parse(answer)[1]
+        # except:
+        parsed_answer = answer
         rewards = reward_fn(gen_text, parsed_answer)
         curr_res = {"prompt": prompt, "generated_text": gen_text, "correct_answer": answer, "rewards": rewards}
         final_result.append(curr_res)

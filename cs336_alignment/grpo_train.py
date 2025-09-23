@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, AutoModel
 import torch
+from pprint import pprint
 from tqdm import tqdm
 from typing import Literal, List, Dict
 import torch.nn.functional as F
@@ -68,7 +69,7 @@ def generate_grpo_rollouts(vllm_model,
          for completion in output.outputs:
              rollout_responses.append(completion.text)
              repeated_prompts.append(output.prompt)
-             repeated_ground_truths.append(gt)
+             repeated_ground_truths.append(gt.split("####")[1].strip())
     return repeated_prompts, repeated_ground_truths, rollout_responses
 
 
@@ -88,7 +89,7 @@ def train_grpo(model_name,
                loss_type: Literal[
                    "no_baseline",
                    "reinforce_with_baseline",
-                   "grpo_clip","grpo_noclip"] = "grpo_clip",
+                   "grpo_clip","grpo_noclip"] = "reinforce_with_baseline",
                 use_std_normalization: bool = True,
                 cliprange = 0.2,
                 eval_steps=256,
@@ -134,6 +135,7 @@ def train_grpo(model_name,
     # first loop 
     print("starting training")
     train_step = 0
+    eval_results = []
     for step in tqdm(range(n_grpo_steps)):
         # sample n prompt per roll out
         idx = np.random.choice(len(train_dataset), n_prompts_per_rollout_batch, replace=False)
@@ -142,6 +144,29 @@ def train_grpo(model_name,
         # set old policy as policy: 
         print("update old policy with policy w/ last updates")
         load_policy_into_vllm_instance(policy, llm) # change old policy with last policy
+
+        if train_step % eval_log_frequecy == 0:
+            # generate roll outs 
+            eval_params = SamplingParams(temperature=1.0,  
+                                        max_tokens=sampling_max_tokens, 
+                                        min_tokens=sampling_min_tokens, 
+                                        stop=["</answer>"], 
+                                        include_stop_str_in_output=True, 
+                                        )
+            idx = np.random.choice(len(eval_dataset), n_eval, replace=False)
+            eval_dataset_sampled = [eval_dataset[id] for id in idx]
+            eval_prompts, eval_answers = [], []
+            for d in eval_dataset_sampled: 
+                eval_prompts.append(R1_ZERO_PROMPT.format(question=d["question"]))
+                eval_answers.append(d["answer"].split("####")[1].strip())
+            eval_out = evaluate_vllm(llm, r1_zero_reward_fn, eval_prompts, eval_params, eval_answers)
+            # import ipdb; ipdb.set_trace()
+            sum_rewards = sum([d['rewards']["reward"] for d in eval_out])
+            sum_format_reward = sum([d['rewards']["format_reward"] for d in eval_out])
+            sum_answer_reward = sum([d['rewards']["answer_reward"] for d in eval_out])
+            answer_len = len(eval_out)
+            eval_results.append(f"TS: {train_step}, AR {sum_rewards/answer_len}, AFR: {sum_format_reward/answer_len}")
+            pprint(eval_results)
 
         # generate roll outs 
         sampling_params = SamplingParams(temperature=sampling_temperature, 
@@ -157,28 +182,11 @@ def train_grpo(model_name,
                                                                                              question_batch, 
                                                                                              R1_ZERO_PROMPT, 
                                                                                              sampling_params)
-        # print(f"Q: {repeated_prompts[0]}, \nA: {repeated_ground_truths[0]}, \n RO: {rollout_responses[0]}")
-        
-        if train_step % eval_log_frequecy == 0:
-            # generate roll outs 
-            eval_params = SamplingParams(temperature=1.0,  
-                                        stop=["</answer>"], 
-                                        include_stop_str_in_output=True, 
-                                        )
-            idx = np.random.choice(len(eval_dataset), n_eval, replace=False)
-            eval_dataset_sampled = [eval_dataset[id] for id in idx]
-            eval_prompts, eval_answers = [], []
-            for d in eval_dataset_sampled:
-                eval_prompts.append(d["question"])
-                eval_answers.append(d["answer"])
-            eval_out = evaluate_vllm(llm, r1_zero_reward_fn, eval_prompts, eval_params, eval_answers)
-            # import ipdb; ipdb.set_trace()
-            sum_rewards = sum([d['rewards']["reward"] for d in eval_out])
-            sum_format_reward = sum([d['rewards']["format_reward"] for d in eval_out])
-            sum_answer_reward = sum([d['rewards']["answer_reward"] for d in eval_out])
-            answer_len = len(eval_out)
-            print(f"Average Rewards {sum_rewards/answer_len}, Avg Format: {sum_format_reward/answer_len}, Avg Answer: {sum_answer_reward/answer_len}")
+        # print_idx = 2
+        # print(f"A: {repeated_ground_truths[print_idx]}, \n RO: {rollout_responses[print_idx]}")
 
+        # r1_zero_reward_fn(rollout_responses[print_idx], repeated_ground_truths[print_idx])
+        # import ipdb; ipdb.set_trace()
         advantages, raw_rewards, metadata = compute_group_normalized_rewards(
             r1_zero_reward_fn, 
             rollout_responses, 
@@ -187,12 +195,14 @@ def train_grpo(model_name,
             advantage_eps,
             normalize_by_std = use_std_normalization,
         )
+        # import ipdb; ipdb.set_trace()
         advantages = advantages.to(policy_device)
         raw_rewards = raw_rewards.to(policy_device)
+        print(f"Mean Rewards {raw_rewards.mean()}, mean advantage {advantages.mean()}")
 
         tokenized = tokenize_prompt_and_output(repeated_prompts, rollout_responses)
-        input_ids_tensor = torch.Tensor(tokenized['input_ids']).to(policy_device) # b, seq
-        labels_tensor = torch.Tensor(tokenized['labels']).to(policy_device)
+        input_ids_tensor = torch.Tensor(tokenized['input_ids']).to(policy_device).long() # b, seq
+        labels_tensor = torch.Tensor(tokenized['labels']).to(policy_device).long()
         mask_tensor = torch.tensor(tokenized['response_mask']).to(policy_device)
 
         # get old log probs OOM 

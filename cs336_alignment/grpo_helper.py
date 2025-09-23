@@ -21,23 +21,24 @@ def compute_group_normalized_rewards(
     # calculate rewards 
     parsed_answer = []
     for res in rollout_responses:
-        try: 
-            parsed_answer.append(parse(res)[1])
-        except:
-            parsed_answer.append(res)
+        # try: 
+        #     parsed_answer.append(parse(res)[1])
+        # except:
+        parsed_answer.append(res)
     rewards_list = [reward_fn(pred, gold) for pred, gold in zip(parsed_answer, repeated_ground_truths)]
     raw_rewards = torch.Tensor([rwd["reward"] for rwd in rewards_list])
     rewards = raw_rewards.reshape(-1, group_size)
     mean_rewards = rewards.mean(dim=-1, keepdim=True)
     group_normalized_reward = rewards - mean_rewards
-
-    metadata = {"mean": mean_rewards}
+    metadata = {"mean_rewards": mean_rewards}
     if normalize_by_std:
         rewards_std = torch.std(rewards, dim=-1, keepdim=True)
         metadata['std'] =  rewards_std
         group_normalized_reward = group_normalized_reward / (rewards_std + advantage_eps)
 
     advantage = group_normalized_reward.flatten() # rollout batch_size
+    mean_advantage = advantage.mean(dim=-1, keepdim=True)
+    metadata["mean_advantage"] = mean_advantage
     return (advantage, raw_rewards, metadata)
 
 def compute_naive_policy_gradient_loss(raw_rewards_or_advantages: torch.Tensor,policy_log_probs: torch.Tensor,) -> torch.Tensor:
