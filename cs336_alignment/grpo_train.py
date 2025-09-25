@@ -97,6 +97,7 @@ def train_grpo(model_name,
                 n_eval=1024,
                 eval_log_frequecy = 4
             ):
+    print(f"Loss Type: {loss_type}")
     
     assert train_batch_size % gradient_accumulation_steps == 0, ("train_batch_size must be divisible by gradient_accumulation_steps")
     micro_train_batch_size = train_batch_size // gradient_accumulation_steps
@@ -196,8 +197,12 @@ def train_grpo(model_name,
             normalize_by_std = use_std_normalization,
         )
         # import ipdb; ipdb.set_trace()
+        if train_step % eval_log_frequecy:
+            print(f'Raw Rewards {raw_rewards}')
+            print(f"Advantages: {advantages}")
         advantages = advantages.to(policy_device)
         raw_rewards = raw_rewards.to(policy_device)
+        print(raw_rewards)
         print(f"Mean Rewards {raw_rewards.mean()}, mean advantage {advantages.mean()}")
 
         tokenized = tokenize_prompt_and_output(repeated_prompts, rollout_responses)
@@ -245,7 +250,7 @@ def train_grpo(model_name,
             
 
 if __name__ == "__main__":
-    train_grpo("model")
+    train_grpo("model", loss_type="no_baseline")
 
 
 
