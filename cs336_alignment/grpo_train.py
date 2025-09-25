@@ -242,7 +242,7 @@ def train_grpo(model_name,
 
                 loss, metadata = grpo_microbatch_train_step(
                     policy_log_probs, mask, gradient_accumulation_steps, loss_type, 
-                    raw_reward, advantage, old_log_prob, cliprange
+                    raw_reward, advantage, old_log_prob, cliprange, length_normalize
                 )
                 # import ipdb; ipdb.set_trace()
                 rollout_batch_loss += loss.item()

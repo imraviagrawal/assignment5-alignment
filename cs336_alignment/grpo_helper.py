@@ -3,6 +3,7 @@ import torch
 from typing import Literal
 import torch.nn.functional as F
 from math_verify import parse, verify
+from cs336_alignment.sft_helper import masked_normalize
 # tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
 # model = AutoModel.from_pretrained("Qwen/Qwen2.5-Math-1.5B")
 # local_directory = "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
@@ -100,13 +101,17 @@ def grpo_microbatch_train_step(
     advantages: torch.Tensor | None= None,
     old_log_probs: torch.Tensor | None= None,
     cliprange: float | None= None,
+    length_normalize = False
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     # get per token loss 
     loss_t, metadata = compute_policy_gradient_loss(policy_log_probs, loss_type, raw_rewards, advantages, old_log_probs, cliprange)
 
 
-    # masked loss scaler / example
-    loss_e = masked_mean(loss_t, response_mask, dim=1) # per example mean (batch, 1)
+    if not length_normalize:
+        # masked loss scaler / example
+        loss_e = masked_mean(loss_t, response_mask, dim=1) # per example mean (batch, 1)
+    else:
+        loss_e = masked_normalize(loss_t, response_mask, 1, dim=1)
 
     # single batch loss, gradient accumulation 
     loss = loss_e.mean()/gradient_accumulation_steps
