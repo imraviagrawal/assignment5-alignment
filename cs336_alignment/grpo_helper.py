@@ -106,12 +106,13 @@ def grpo_microbatch_train_step(
     # get per token loss 
     loss_t, metadata = compute_policy_gradient_loss(policy_log_probs, loss_type, raw_rewards, advantages, old_log_probs, cliprange)
 
+    max_gen_len = policy_log_probs.shape[1]
 
     if not length_normalize:
         # masked loss scaler / example
         loss_e = masked_mean(loss_t, response_mask, dim=1) # per example mean (batch, 1)
     else:
-        loss_e = masked_normalize(loss_t, response_mask, 1, dim=1)
+        loss_e = masked_normalize(loss_t, response_mask, max_gen_len, dim=1)
 
     # single batch loss, gradient accumulation 
     loss = loss_e.mean()/gradient_accumulation_steps
