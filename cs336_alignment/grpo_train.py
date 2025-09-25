@@ -252,7 +252,12 @@ def train_grpo(model_name,
             
 
 if __name__ == "__main__":
-    train_grpo("model", loss_type="reinforce_with_baseline", length_normalize=True)
+    train_grpo("model", 
+    loss_type="grpo_clip", 
+    length_normalize=True, 
+    use_std_normalization=False, 
+    epochs_per_rollout_batch=4, 
+    train_batch_size=256)
 
 
 
