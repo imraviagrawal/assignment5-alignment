@@ -257,7 +257,9 @@ if __name__ == "__main__":
     length_normalize=True, 
     use_std_normalization=False, 
     epochs_per_rollout_batch=4, 
-    train_batch_size=256)
+    train_batch_size=512,
+    gradient_accumulation_steps=256 # double grad_acc to keep mem same
+    )
 
 
 
