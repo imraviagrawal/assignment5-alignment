@@ -169,7 +169,7 @@ def train_grpo(model_name,
             answer_len = len(eval_out)
             avg_answer_len = np.mean(gen_texts)
             std_answer_len = np.std(gen_texts)
-            eval_results.append(f"TS: {train_step}, AR {sum_rewards/answer_len}, AFR: {sum_format_reward/answer_len}, \n Avg Len: {avg_answer_len}, Std Len: {std_answer_len}")
+            eval_results.append(f"\n TS: {train_step}, AR {sum_rewards/answer_len}, AFR: {sum_format_reward/answer_len}, \n Avg Len: {avg_answer_len}, Std Len: {std_answer_len}")
             pprint(eval_results)
 
         # generate roll outs 
@@ -200,7 +200,7 @@ def train_grpo(model_name,
             normalize_by_std = use_std_normalization,
         )
         # import ipdb; ipdb.set_trace()
-        if train_step % eval_log_frequecy:
+        if train_step % eval_log_frequecy == 0:
             print(f'Raw Rewards {raw_rewards.reshape(-1, group_size)}, \n')
             print(f"Advantages: {advantages.reshape(-1, group_size)}")
         advantages = advantages.to(policy_device)
