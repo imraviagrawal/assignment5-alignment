@@ -95,7 +95,7 @@ def train_grpo(model_name,
                 eval_steps=256,
                 length_normalize=False,
                 n_eval=1024,
-                eval_log_frequecy = 4
+                eval_log_frequecy = 8
             ):
     print(f"Loss Type: {loss_type}")
     
@@ -161,12 +161,15 @@ def train_grpo(model_name,
                 eval_prompts.append(R1_ZERO_PROMPT.format(question=d["question"]))
                 eval_answers.append(d["answer"].split("####")[1].strip())
             eval_out = evaluate_vllm(llm, r1_zero_reward_fn, eval_prompts, eval_params, eval_answers)
+            gen_texts = [len(d["generated_text"]) for d in eval_out]
             # import ipdb; ipdb.set_trace()
             sum_rewards = sum([d['rewards']["reward"] for d in eval_out])
             sum_format_reward = sum([d['rewards']["format_reward"] for d in eval_out])
             sum_answer_reward = sum([d['rewards']["answer_reward"] for d in eval_out])
             answer_len = len(eval_out)
-            eval_results.append(f"TS: {train_step}, AR {sum_rewards/answer_len}, AFR: {sum_format_reward/answer_len}")
+            avg_answer_len = np.mean(gen_texts)
+            std_answer_len = np.std(gen_texts)
+            eval_results.append(f"TS: {train_step}, AR {sum_rewards/answer_len}, AFR: {sum_format_reward/answer_len}, \n Avg Len: {avg_answer_len}, Std Len: {std_answer_len}")
             pprint(eval_results)
 
         # generate roll outs 
@@ -198,11 +201,10 @@ def train_grpo(model_name,
         )
         # import ipdb; ipdb.set_trace()
         if train_step % eval_log_frequecy:
-            print(f'Raw Rewards {raw_rewards}')
-            print(f"Advantages: {advantages}")
+            print(f'Raw Rewards {raw_rewards.reshape(-1, group_size)}, \n')
+            print(f"Advantages: {advantages.reshape(-1, group_size)}")
         advantages = advantages.to(policy_device)
         raw_rewards = raw_rewards.to(policy_device)
-        print(raw_rewards)
         print(f"Mean Rewards {raw_rewards.mean()}, mean advantage {advantages.mean()}")
 
         tokenized = tokenize_prompt_and_output(repeated_prompts, rollout_responses)
