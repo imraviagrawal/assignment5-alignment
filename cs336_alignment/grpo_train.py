@@ -205,7 +205,7 @@ def train_grpo(model_name,
             print(f"Advantages: {advantages.reshape(-1, group_size)}")
         advantages = advantages.to(policy_device)
         raw_rewards = raw_rewards.to(policy_device)
-        print(f"Mean Rewards {raw_rewards.mean()}, mean advantage {advantages.mean()}")
+        print(f"Train Step: {train_step} Mean Rewards {raw_rewards.mean()}, mean advantage {advantages.mean()}")
 
         tokenized = tokenize_prompt_and_output(repeated_prompts, rollout_responses)
         input_ids_tensor = torch.Tensor(tokenized['input_ids']).to(policy_device).long() # b, seq
@@ -252,7 +252,7 @@ def train_grpo(model_name,
             
 
 if __name__ == "__main__":
-    train_grpo("model", loss_type="no_baseline")
+    train_grpo("model", loss_type="reinforce_with_baseline")
 
 
 
