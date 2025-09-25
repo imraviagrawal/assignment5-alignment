@@ -242,7 +242,7 @@ def train_grpo(model_name,
 
                 loss, metadata = grpo_microbatch_train_step(
                     policy_log_probs, mask, gradient_accumulation_steps, loss_type, 
-                    raw_reward, advantage, old_log_prob, cliprange, length_normalize
+                    raw_reward, advantage, old_log_prob, cliprange, length_normalize, sampling_max_tokens
                 )
                 # import ipdb; ipdb.set_trace()
                 rollout_batch_loss += loss.item()
@@ -252,7 +252,7 @@ def train_grpo(model_name,
             
 
 if __name__ == "__main__":
-    train_grpo("model", loss_type="reinforce_with_baseline")
+    train_grpo("model", loss_type="reinforce_with_baseline", length_normalize=True)
 
 
 

@@ -101,12 +101,13 @@ def grpo_microbatch_train_step(
     advantages: torch.Tensor | None= None,
     old_log_probs: torch.Tensor | None= None,
     cliprange: float | None= None,
-    length_normalize = False
+    length_normalize = False, 
+    max_gen_len = 1024
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     # get per token loss 
     loss_t, metadata = compute_policy_gradient_loss(policy_log_probs, loss_type, raw_rewards, advantages, old_log_probs, cliprange)
 
-    max_gen_len = policy_log_probs.shape[1]
+    # max_gen_len = policy_log_probs.shape[1]
 
     if not length_normalize:
         # masked loss scaler / example
